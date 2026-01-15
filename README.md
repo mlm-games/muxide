@@ -4,8 +4,8 @@
   <a href="https://crates.io/crates/muxide"><img src="https://img.shields.io/crates/v/muxide.svg" alt="Crates.io"></a>
   <a href="https://crates.io/crates/muxide"><img src="https://img.shields.io/crates/d/muxide.svg" alt="Downloads"></a>
   <a href="https://docs.rs/muxide"><img src="https://docs.rs/muxide/badge.svg" alt="Documentation"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/MSRV-1.70-blue.svg" alt="MSRV"></a>
+    <a href="#license"><img src="https://img.shields.io/crates/l/muxide.svg" alt="License"></a>
+    <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/MSRV-1.74-blue.svg" alt="MSRV"></a>
   <a href="https://github.com/Michael-A-Kuykendall/muxide/actions"><img src="https://github.com/Michael-A-Kuykendall/muxide/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
@@ -124,7 +124,7 @@ If input violates the contract, Muxide **fails fast** with explicit errors—no 
 | 📦 **Minimal deps** | Only essential Rust crates — no external binaries |
 | 🧵 **Thread-safe** | `Send + Sync` when writer is |
 | ✅ **Well-tested** | Unit, integration, property tests |
-| 📜 **MIT license** | No GPL, no copyleft concerns |
+| 📜 **Permissive license** | Dual-licensed: MIT OR Apache-2.0 |
 | 🚨 **Developer-friendly** | Exceptional error messages make debugging 10x faster |
 
 > **Note:** `no_std` is not supported. Muxide requires `std::io::Write`.
@@ -482,10 +482,14 @@ Yes. Muxide has an extensive test suite (unit, integration, property-based tests
 
 ## License
 
-MIT — no GPL, no copyleft, no surprises.
+Licensed under either of:
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
 
 ---
 
 <p align="center">
   <em>Muxide is designed to be <strong>boring</strong> in the best way:<br>predictable, strict, fast, and invisible once integrated.</em>
-</p># Test CI trigger
+</p>

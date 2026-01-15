@@ -6,7 +6,7 @@ Thank you for your interest in Muxide!
 
 Muxide is **open source** but **not open contribution**.
 
-- The code is freely available under the MIT license
+- The code is freely available under a permissive dual license (MIT OR Apache-2.0)
 - You can fork, modify, use, and learn from it without restriction
 - **Pull requests are not accepted by default**
 - All architectural, roadmap, and merge decisions are made by the project maintainer
