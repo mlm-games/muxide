@@ -5,7 +5,7 @@
   <a href="https://crates.io/crates/muxide"><img src="https://img.shields.io/crates/d/muxide.svg" alt="Downloads"></a>
   <a href="https://docs.rs/muxide"><img src="https://docs.rs/muxide/badge.svg" alt="Documentation"></a>
     <a href="#license"><img src="https://img.shields.io/crates/l/muxide.svg" alt="License"></a>
-    <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/MSRV-1.74-blue.svg" alt="MSRV"></a>
+    <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/MSRV-1.92-blue.svg" alt="MSRV"></a>
   <a href="https://github.com/Michael-A-Kuykendall/muxide/actions"><img src="https://github.com/Michael-A-Kuykendall/muxide/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
