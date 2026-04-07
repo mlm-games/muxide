@@ -323,7 +323,12 @@ fn parse_sequence_header(obu_data: &[u8], header_size: usize) -> Option<Av1Confi
         }
 
         // decoder_model_info_present_flag: 1 bit
-        let decoder_model_info_present = reader.read_bit()?;
+        // Per AV1 spec, this flag should only be present when timing_info_present_flag is 1.
+        let decoder_model_info_present = if timing_info_present {
+            reader.read_bit()?
+        } else {
+            false
+        };
         let mut buffer_delay_length = 0;
         if decoder_model_info_present {
             buffer_delay_length = reader.read_bits(5)? as u8 + 1;
