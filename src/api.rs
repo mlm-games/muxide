@@ -9,7 +9,9 @@ use crate::fragmented::{FragmentConfig, FragmentedMuxer};
 /// modules.  The API defined here intentionally exposes only the
 /// capabilities promised by the charter and contract documents.  It does
 /// not contain any implementation details.
-use crate::muxer::mp4::{Mp4AudioTrack, Mp4VideoTrack, Mp4Writer, Mp4WriterError, MEDIA_TIMESCALE};
+use crate::muxer::mp4::{
+    Mp4AudioTrack, Mp4SubtitleTrack, Mp4VideoTrack, Mp4Writer, Mp4WriterError, MEDIA_TIMESCALE,
+};
 use std::fmt;
 use std::io::Write;
 
@@ -84,12 +86,27 @@ pub enum AudioCodec {
     None,
 }
 
+/// Enumeration of supported subtitle codecs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubtitleCodec {
+    /// MP4 Timed Text (`tx3g`) payload.
+    MovText,
+}
+
 impl fmt::Display for AudioCodec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AudioCodec::Aac(profile) => write!(f, "AAC-{}", profile),
             AudioCodec::Opus => write!(f, "Opus"),
             AudioCodec::None => write!(f, "None"),
+        }
+    }
+}
+
+impl fmt::Display for SubtitleCodec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SubtitleCodec::MovText => write!(f, "mov_text"),
         }
     }
 }
@@ -121,6 +138,17 @@ impl std::str::FromStr for AudioCodec {
             "opus" => Ok(AudioCodec::Opus),
             "none" => Ok(AudioCodec::None),
             _ => Err(format!("Unknown audio codec: {}", s)),
+        }
+    }
+}
+
+impl std::str::FromStr for SubtitleCodec {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "mov_text" | "movtext" | "tx3g" => Ok(SubtitleCodec::MovText),
+            _ => Err(format!("Unknown subtitle codec: {}", s)),
         }
     }
 }
@@ -219,6 +247,7 @@ impl MuxerConfig {
 pub struct MuxerStats {
     pub video_frames: u64,
     pub audio_frames: u64,
+    pub subtitle_frames: u64,
     pub duration_secs: f64,
     pub bytes_written: u64,
 }
@@ -237,6 +266,8 @@ pub struct MuxerBuilder<Writer> {
     video: Option<(VideoCodec, u32, u32, f64)>,
     /// Optional audio configuration.
     audio: Option<(AudioCodec, u32, u16)>,
+    /// Optional subtitle configuration.
+    subtitle: Option<SubtitleTrackConfig>,
     /// Metadata to embed in the output file.
     metadata: Option<Metadata>,
     /// Whether to enable fast-start (moov before mdat).
@@ -260,6 +291,7 @@ impl<Writer> MuxerBuilder<Writer> {
             writer,
             video: None,
             audio: None,
+            subtitle: None,
             metadata: None,
             fast_start: true, // Default ON for web compatibility
             sps: None,
@@ -279,6 +311,12 @@ impl<Writer> MuxerBuilder<Writer> {
     /// Configure the audio track.
     pub fn audio(mut self, codec: AudioCodec, sample_rate: u32, channels: u16) -> Self {
         self.audio = Some((codec, sample_rate, channels));
+        self
+    }
+
+    /// Configure the subtitle track.
+    pub fn subtitle(mut self, codec: SubtitleCodec, language: Option<String>) -> Self {
+        self.subtitle = Some(SubtitleTrackConfig { codec, language });
         self
     }
 
@@ -392,7 +430,13 @@ impl<Writer> MuxerBuilder<Writer> {
             }
         });
 
-        if video_track.is_none() && audio_track.is_none() {
+        let subtitle_track = self.subtitle;
+
+        if subtitle_track.is_some() && video_track.is_none() {
+            return Err(MuxerError::SubtitleRequiresVideo);
+        }
+
+        if video_track.is_none() && audio_track.is_none() && subtitle_track.is_none() {
             return Err(MuxerError::MissingConfig);
         }
 
@@ -407,19 +451,28 @@ impl<Writer> MuxerBuilder<Writer> {
                 codec: audio.codec,
             });
         }
+        if let Some(ref subtitle) = &subtitle_track {
+            writer.enable_subtitle(Mp4SubtitleTrack {
+                codec: subtitle.codec,
+                language: subtitle.language.clone(),
+            });
+        }
 
         Ok(Muxer {
             writer,
             video_track,
             audio_track,
+            subtitle_track,
             metadata: self.metadata,
             fast_start: self.fast_start,
             first_video_pts: None,
             last_video_pts: None,
             last_video_dts: None,
             last_audio_pts: None,
+            last_subtitle_pts: None,
             video_frame_count: 0,
             audio_frame_count: 0,
+            subtitle_frame_count: 0,
             finished: false,
             current_video_pts: 0.0,
             current_audio_pts: 0.0,
@@ -537,6 +590,15 @@ pub struct AudioTrackConfig {
     pub channels: u16,
 }
 
+/// Configuration for a subtitle track.
+#[derive(Debug, Clone)]
+pub struct SubtitleTrackConfig {
+    /// Subtitle codec.
+    pub codec: SubtitleCodec,
+    /// Language code (ISO 639-2/T), e.g., "eng".
+    pub language: Option<String>,
+}
+
 /// Opaque muxer type.  Users interact with this type to write frames
 /// into the container.  Implementation details are hidden in a private
 /// module.
@@ -550,14 +612,17 @@ pub struct Muxer<Writer> {
     writer: Mp4Writer<Writer>,
     video_track: Option<VideoTrackConfig>,
     audio_track: Option<AudioTrackConfig>,
+    subtitle_track: Option<SubtitleTrackConfig>,
     metadata: Option<Metadata>,
     fast_start: bool,
     first_video_pts: Option<f64>,
     last_video_pts: Option<f64>,
     last_video_dts: Option<f64>,
     last_audio_pts: Option<f64>,
+    last_subtitle_pts: Option<f64>,
     video_frame_count: u64,
     audio_frame_count: u64,
+    subtitle_frame_count: u64,
     finished: bool,
     current_video_pts: f64,
     current_audio_pts: f64,
@@ -591,6 +656,8 @@ pub enum MuxerError {
     AudioNotConfigured,
     /// Audio sample is empty.
     EmptyAudioFrame { frame_index: u64 },
+    /// Subtitle sample is empty.
+    EmptySubtitleSample { frame_index: u64 },
     /// Video sample is empty.
     EmptyVideoFrame { frame_index: u64 },
     /// Video timestamps must be strictly increasing.
@@ -610,6 +677,25 @@ pub enum MuxerError {
         audio_pts: f64,
         first_video_pts: Option<f64>,
     },
+    /// Subtitle `pts` must be non-negative.
+    NegativeSubtitlePts { pts: f64, frame_index: u64 },
+    /// Subtitle `pts` must be finite.
+    InvalidSubtitlePts { pts: f64, frame_index: u64 },
+    /// Subtitle duration must be positive and finite.
+    InvalidSubtitleDuration {
+        duration_secs: f64,
+        frame_index: u64,
+    },
+    /// Subtitle track is not configured.
+    SubtitleNotConfigured,
+    /// Subtitle timestamps must be non-decreasing.
+    DecreasingSubtitlePts {
+        prev_pts: f64,
+        curr_pts: f64,
+        frame_index: u64,
+    },
+    /// Subtitle tracks require a video track for MP4 compatibility.
+    SubtitleRequiresVideo,
     /// The first video frame must be a keyframe.
     FirstVideoFrameMustBeKeyframe,
     /// The first video frame must include SPS/PPS (H.264/H.265).
@@ -645,7 +731,10 @@ impl fmt::Display for MuxerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MuxerError::MissingConfig => {
-                write!(f, "missing configuration: call .video() or .audio() on MuxerBuilder before .build()")
+                write!(f, "missing configuration: call .video(), .audio(), or .subtitle() on MuxerBuilder before .build()")
+            }
+            MuxerError::SubtitleRequiresVideo => {
+                write!(f, "subtitle track requires video track: call .video() before .subtitle()")
             }
             MuxerError::Io(err) => write!(f, "IO error: {}", err),
             MuxerError::AlreadyFinished => {
@@ -681,6 +770,9 @@ impl fmt::Display for MuxerError {
             MuxerError::EmptyAudioFrame { frame_index } => {
                 write!(f, "audio frame {} is empty: ADTS frames must contain data", frame_index)
             }
+            MuxerError::EmptySubtitleSample { frame_index } => {
+                write!(f, "subtitle sample {} is empty", frame_index)
+            }
             MuxerError::EmptyVideoFrame { frame_index } => {
                 write!(f, "video frame {} is empty: video samples must contain NAL units", frame_index)
             }
@@ -702,6 +794,28 @@ impl fmt::Display for MuxerError {
                     None => write!(f, "audio frame arrived before any video frame: \
                                        write at least one video frame before writing audio"),
                 }
+            }
+            MuxerError::NegativeSubtitlePts { pts, frame_index } => {
+                write!(f, "subtitle sample {} has negative PTS ({:.3}s)", frame_index, pts)
+            }
+            MuxerError::InvalidSubtitlePts { pts, frame_index } => {
+                write!(f, "subtitle sample {} has invalid PTS ({:.3}s): timestamps must be finite", frame_index, pts)
+            }
+            MuxerError::InvalidSubtitleDuration {
+                duration_secs,
+                frame_index,
+            } => {
+                write!(f, "subtitle sample {} has invalid duration ({:.3}s): duration must be positive and finite", frame_index, duration_secs)
+            }
+            MuxerError::SubtitleNotConfigured => {
+                write!(f, "subtitle track not configured: call .subtitle() on MuxerBuilder to enable subtitles")
+            }
+            MuxerError::DecreasingSubtitlePts {
+                prev_pts,
+                curr_pts,
+                frame_index,
+            } => {
+                write!(f, "subtitle sample {} has PTS {:.3}s which is less than previous PTS {:.3}s: subtitle timestamps must not decrease", frame_index, curr_pts, prev_pts)
             }
             MuxerError::FirstVideoFrameMustBeKeyframe => {
                 write!(f, "first video frame must be a keyframe (IDR): \
@@ -904,6 +1018,7 @@ impl<Writer: Write> Muxer<Writer> {
             }
             Mp4WriterError::InvalidOpusPacket => MuxerError::InvalidOpusPacket { frame_index },
             Mp4WriterError::AudioNotEnabled => MuxerError::AudioNotConfigured,
+            Mp4WriterError::SubtitleNotEnabled => MuxerError::SubtitleNotConfigured,
             Mp4WriterError::DurationOverflow => MuxerError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "duration overflow",
@@ -980,6 +1095,67 @@ impl<Writer: Write> Muxer<Writer> {
 
         self.last_audio_pts = Some(pts);
         self.audio_frame_count += 1;
+        Ok(())
+    }
+
+    /// Write a subtitle sample to the container.
+    ///
+    /// `pts` is the presentation timestamp in seconds and `duration` is the sample duration
+    /// in seconds. `text` is UTF-8 subtitle payload.
+    pub fn write_subtitle(
+        &mut self,
+        pts: f64,
+        duration: f64,
+        text: &str,
+    ) -> Result<(), MuxerError> {
+        if self.finished {
+            return Err(MuxerError::AlreadyFinished);
+        }
+        if self.subtitle_track.is_none() {
+            return Err(MuxerError::SubtitleNotConfigured);
+        }
+
+        let frame_index = self.subtitle_frame_count;
+
+        if !pts.is_finite() {
+            return Err(MuxerError::InvalidSubtitlePts { pts, frame_index });
+        }
+        if pts < 0.0 {
+            return Err(MuxerError::NegativeSubtitlePts { pts, frame_index });
+        }
+
+        if !duration.is_finite() || duration <= 0.0 {
+            return Err(MuxerError::InvalidSubtitleDuration {
+                duration_secs: duration,
+                frame_index,
+            });
+        }
+
+        if text.is_empty() {
+            return Err(MuxerError::EmptySubtitleSample { frame_index });
+        }
+
+        if let Some(prev) = self.last_subtitle_pts {
+            if pts < prev {
+                return Err(MuxerError::DecreasingSubtitlePts {
+                    prev_pts: prev,
+                    curr_pts: pts,
+                    frame_index,
+                });
+            }
+        }
+
+        let scaled_pts = (pts * MEDIA_TIMESCALE as f64).round();
+        let pts_units = scaled_pts as u64;
+        let scaled_duration = (duration * MEDIA_TIMESCALE as f64).round().max(1.0);
+        let duration_units = scaled_duration as u32;
+
+        self.writer
+            .write_subtitle_sample(pts_units, duration_units, text.as_bytes())
+            .map_err(|e| self.convert_mp4_error(e, frame_index))?;
+
+        self.last_subtitle_pts = Some(pts);
+        self.subtitle_frame_count += 1;
         Ok(())
     }
 
@@ -1087,6 +1263,7 @@ impl<Writer: Write> Muxer<Writer> {
 
         let video_frames = self.writer.video_sample_count();
         let audio_frames = self.writer.audio_sample_count();
+        let subtitle_frames = self.writer.subtitle_sample_count();
         let duration_ticks = self.writer.max_end_pts().unwrap_or(0);
         let duration_secs = duration_ticks as f64 / MEDIA_TIMESCALE as f64;
         let bytes_written = self.writer.bytes_written();
@@ -1094,6 +1271,7 @@ impl<Writer: Write> Muxer<Writer> {
         Ok(MuxerStats {
             video_frames,
             audio_frames,
+            subtitle_frames,
             duration_secs,
             bytes_written,
         })
