@@ -2,7 +2,7 @@ mod support;
 
 use muxide::api::{MuxerBuilder, VideoCodec};
 use std::{fs, path::Path};
-use support::{parse_boxes, Mp4Box, SharedBuffer};
+use support::{Mp4Box, SharedBuffer, parse_boxes};
 
 fn read_hex_fixture(name: &str) -> Vec<u8> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

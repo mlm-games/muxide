@@ -80,10 +80,12 @@ fn vp9_first_frame_must_be_keyframe() {
     let pframe = build_vp9_pframe();
     let result = muxer.write_video(0.0, &pframe, false);
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("first video frame must be a keyframe"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("first video frame must be a keyframe")
+    );
 }
 
 #[test]
@@ -98,10 +100,12 @@ fn vp9_keyframe_must_have_valid_config() {
     let invalid_frame = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
     let result = muxer.write_video(0.0, &invalid_frame, true);
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("first VP9 frame must contain sequence parameters"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("first VP9 frame must contain sequence parameters")
+    );
 }
 
 #[test]

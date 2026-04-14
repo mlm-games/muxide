@@ -394,7 +394,9 @@ fn mux_command(
         .with_context(|| format!("Failed to create output file: {}", output.display()))?;
 
     if fragmented {
-        anyhow::bail!("Fragmented MP4 is not yet supported in the CLI. Use the library API with FragmentedMuxer.");
+        anyhow::bail!(
+            "Fragmented MP4 is not yet supported in the CLI. Use the library API with FragmentedMuxer."
+        );
     }
 
     // Build muxer configuration

@@ -1,7 +1,7 @@
 mod support;
 
 use muxide::api::{MuxerBuilder, VideoCodec};
-use support::{parse_boxes, SharedBuffer};
+use support::{SharedBuffer, parse_boxes};
 
 #[test]
 fn video_track_structure_contains_expected_boxes() -> Result<(), Box<dyn std::error::Error>> {

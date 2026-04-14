@@ -1,7 +1,7 @@
 mod support;
 
 use muxide::api::{MuxerBuilder, VideoCodec};
-use support::{parse_boxes, Mp4Box, SharedBuffer};
+use support::{Mp4Box, SharedBuffer, parse_boxes};
 
 fn find_box(haystack: &[u8], typ: [u8; 4]) -> Mp4Box {
     *parse_boxes(haystack)

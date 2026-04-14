@@ -36,10 +36,12 @@ fn test_new_with_fragment_h265_requires_vps_sps_pps() {
         .with_pps(vec![0x44, 0x01, 0xc0])
         .new_with_fragment();
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("VPS must be provided"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("VPS must be provided")
+    );
 
     // Test H.265 requires SPS
     let result = MuxerBuilder::new(writer.clone())
@@ -48,10 +50,12 @@ fn test_new_with_fragment_h265_requires_vps_sps_pps() {
         .with_pps(vec![0x44, 0x01, 0xc0])
         .new_with_fragment();
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("SPS must be provided"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("SPS must be provided")
+    );
 
     // Test H.265 requires PPS
     let result = MuxerBuilder::new(writer.clone())
@@ -60,10 +64,12 @@ fn test_new_with_fragment_h265_requires_vps_sps_pps() {
         .with_sps(vec![0x42, 0x01, 0x01])
         .new_with_fragment();
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("PPS must be provided"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("PPS must be provided")
+    );
 }
 
 #[test]
@@ -75,10 +81,12 @@ fn test_new_with_fragment_vp9_requires_config() {
         .video(VideoCodec::Vp9, 1920, 1080, 30.0)
         .new_with_fragment();
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("VP9 config must be provided"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("VP9 config must be provided")
+    );
 }
 
 #[test]

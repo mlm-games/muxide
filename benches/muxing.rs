@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use muxide::api::{AacProfile, AudioCodec, MuxerBuilder, VideoCodec};
 use std::io::Cursor;
 

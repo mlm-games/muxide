@@ -2,7 +2,7 @@ mod support;
 
 use muxide::api::{MuxerBuilder, VideoCodec};
 use std::{fs, path::Path};
-use support::{parse_boxes, Mp4Box, SharedBuffer};
+use support::{Mp4Box, SharedBuffer, parse_boxes};
 
 fn read_hex_fixture(name: &str) -> Vec<u8> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -84,12 +84,16 @@ fn avcc_uses_sps_pps_from_first_keyframe() -> Result<(), Box<dyn std::error::Err
     let expected_compat = 0x00;
     let expected_level = 0x28;
 
-    assert!(avcc_payload
-        .windows(6)
-        .any(|w| w == [0x67, 0x4d, 0x00, 0x28, 0xaa, 0xbb]));
-    assert!(avcc_payload
-        .windows(4)
-        .any(|w| w == [0x68, 0xee, 0x06, 0xf2]));
+    assert!(
+        avcc_payload
+            .windows(6)
+            .any(|w| w == [0x67, 0x4d, 0x00, 0x28, 0xaa, 0xbb])
+    );
+    assert!(
+        avcc_payload
+            .windows(4)
+            .any(|w| w == [0x68, 0xee, 0x06, 0xf2])
+    );
 
     // avcC header bytes must match SPS profile/compat/level.
     assert!(avcc_payload.len() >= 4);
