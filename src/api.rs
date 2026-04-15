@@ -444,14 +444,14 @@ impl<Writer> MuxerBuilder<Writer> {
         if let Some(ref video) = video_track {
             writer.enable_video(video.codec);
         }
-        if let Some(ref audio) = &audio_track {
+        if let Some(audio) = &audio_track {
             writer.enable_audio(Mp4AudioTrack {
                 sample_rate: audio.sample_rate,
                 channels: audio.channels,
                 codec: audio.codec,
             });
         }
-        if let Some(ref subtitle) = &subtitle_track {
+        if let Some(subtitle) = &subtitle_track {
             writer.enable_subtitle(Mp4SubtitleTrack {
                 codec: subtitle.codec,
                 language: subtitle.language.clone(),
